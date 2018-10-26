@@ -1,0 +1,86 @@
+Total Packets Received (Octets)................ 0
+Packets Received 64 Octets..................... 0
+Packets Received 65-127 Octets................. 0
+Packets Received 128-255 Octets................ 0
+Packets Received 256-511 Octets................ 0
+Packets Received 512-1023 Octets............... 0
+Packets Received 1024-1518 Octets.............. 0
+Packets Received > 1518 Octets................. 0
+Packets RX and TX 64 Octets.................... 0
+Packets RX and TX 65-127 Octets................ 0
+Packets RX and TX 128-255 Octets............... 0
+Packets RX and TX 256-511 Octets............... 0
+Packets RX and TX 512-1023 Octets.............. 0
+Packets RX and TX 1024-1518 Octets............. 0
+Packets RX and TX 1519-2047 Octets............. 0
+Packets RX and TX 2048-4095 Octets............. 0
+Packets RX and TX 4096-9216 Octets............. 0
+
+Total Packets Received Without Errors.......... 0
+Unicast Packets Received....................... 0
+Multicast Packets Received..................... 0
+Broadcast Packets Received..................... 0
+
+Receive Packets Discarded...................... 0
+
+Total Packets Received with MAC Errors......... 0
+Jabbers Received............................... 0
+Fragments Received............................. 0
+Undersize Received............................. 0
+Alignment Errors............................... 0
+FCS Errors..................................... 0
+Overruns....................................... 0
+
+Total Received Packets Not Forwarded........... 0
+802.3x Pause Frames Received................... 0
+Unacceptable Frame Type........................ 0
+
+Total Packets Transmitted (Octets)............. 0
+Packets Transmitted 64 Octets.................. 0
+Packets Transmitted 65-127 Octets.............. 0
+Packets Transmitted 128-255 Octets............. 0
+Packets Transmitted 256-511 Octets............. 0
+Packets Transmitted 512-1023 Octets............ 0
+Packets Transmitted 1024-1518 Octets........... 0
+Packets Transmitted > 1518 Octets.............. 0
+Max Frame Size................................. 1518
+
+Total Packets Transmitted Successfully......... 0
+Unicast Packets Transmitted.................... 0
+Multicast Packets Transmitted.................. 0
+Broadcast Packets Transmitted.................. 0
+
+Transmit Packets Discarded..................... 0
+
+Total Transmit Errors.......................... 0
+
+Total Transmit Packets Discarded............... 0
+Single Collision Frames........................ 0
+Multiple Collision Frames...................... 0
+Excessive Collision Frames..................... 0
+
+802.3x Pause Frames Transmitted................ 0
+GVRP PDUs received............................. 0
+GVRP PDUs Transmitted.......................... 0
+GVRP Failed Registrations...................... 0
+GMRP PDUs Received............................. 0
+GMRP PDUs Transmitted.......................... 0
+GMRP Failed Registrations...................... 0
+
+STP BPDUs Transmitted.......................... 0
+STP BPDUs Received............................. 0
+RSTP BPDUs Transmitted......................... 0
+RSTP BPDUs Received............................ 0
+MSTP BPDUs Transmitted......................... 0
+MSTP BPDUs Received............................ 0
+
+EAPOL Frames Transmitted....................... 0
+EAPOL Start Frames Received.................... 0
+
+Load Interval.................................. 5
+Bits Per Second Received....................... 0
+Bits Per Second Transmitted.................... 0
+Packets Per Second Received.................... 0
+Packets Per Second Transmitted................. 0
+
+Time Since Counters Last Cleared............... 5 day 12 hr 54 min 17 sec
