@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-# (c) 2017, Ansible by Red Hat, inc
+# (c) 2018, Ansible by Red Hat, inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -222,8 +222,12 @@ def map_obj_to_commands(updates, module):
         if mtu != running_mtu:
             cmds.append('mtu {0}'.format(mtu))
 
-        if description and description != obj_in_have.get('description'):
-            cmds.append('description \'{0}\''.format(description))
+        if description is not None:
+            if len(description):
+                if description != obj_in_have.get('description'):
+                    cmds.append('description \'{0}\''.format(description))
+            elif obj_in_have.get('description'):
+                cmds.append('no description')
 
         if speed and speed != obj_in_have.get('speed'):
             cmds.append('speed ' + speed)

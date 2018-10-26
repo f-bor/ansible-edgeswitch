@@ -4,7 +4,7 @@
 # still belong to the author of the module, and may assign their own license
 # to the complete work.
 #
-# (c) 2016 Red Hat Inc.
+# (c) 2018 Red Hat Inc.
 #
 # Redistribution and use in source and binary forms, with or without modification,
 # are permitted provided that the following conditions are met:
@@ -61,8 +61,6 @@ def map_params_to_obj(module):
                     item[key] = module.params[key]
 
             d = item.copy()
-            d['vlan_id'] = str(d['vlan_id'])
-
             obj.append(d)
     else:
         obj.append(module.params)
@@ -105,10 +103,14 @@ def get_defaults_flag(module):
 
 
 def get_config(module, flags=None):
-    flag_str = ' '.join(to_list(flags))
+    flags = [] if flags is None else flags
+
+    cmd = 'show running-config '
+    cmd += ' '.join(flags)
+    cmd = cmd.strip()
 
     try:
-        return _DEVICE_CONFIGS[flag_str]
+        return _DEVICE_CONFIGS[cmd]
     except KeyError:
         connection = get_connection(module)
         try:
@@ -116,7 +118,7 @@ def get_config(module, flags=None):
         except ConnectionError as exc:
             module.fail_json(msg=to_text(exc, errors='surrogate_then_replace'))
         cfg = to_text(out, errors='surrogate_then_replace').strip()
-        _DEVICE_CONFIGS[flag_str] = cfg
+        _DEVICE_CONFIGS[cmd] = cfg
         return cfg
 
 

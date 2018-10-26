@@ -1,5 +1,5 @@
 #
-# (c) 2017 Red Hat Inc.
+# (c) 2018 Red Hat Inc.
 #
 # This file is part of Ansible
 #
@@ -32,64 +32,8 @@ from ansible.module_utils.network.common.utils import to_list
 from ansible.plugins.cliconf import CliconfBase, enable_mode
 from ansible.module_utils.common._collections_compat import Mapping
 
-try:
-    from __main__ import display
-except ImportError:
-    from ansible.utils.display import Display
-    display = Display()
-
 
 class Cliconf(CliconfBase):
-
-    @enable_mode
-    def get_config(self, source='running', flags=None):
-        if source not in ('running', 'startup'):
-            raise ValueError("fetching configuration from %s is not supported" % source)
-
-        if not flags:
-            flags = []
-        if source == 'running':
-            cmd = 'show running-config '
-        else:
-            cmd = 'show startup-config '
-
-        cmd += ' '.join(to_list(flags))
-        cmd = cmd.strip()
-
-        return self.send_command(cmd)
-
-    @enable_mode
-    def edit_config(self, candidate=None, commit=True, replace=None, comment=None):
-        resp = {}
-
-        results = []
-        requests = []
-        if commit:
-            self.send_command('configure')
-            for line in to_list(candidate):
-                if not isinstance(line, Mapping):
-                    line = {'command': line}
-
-                cmd = line['command']
-                if cmd != 'end' and cmd[0] != '!':
-                    results.append(self.send_command(**line))
-                    requests.append(cmd)
-
-            self.send_command('end')
-        else:
-            raise ValueError('check mode is not supported')
-
-        resp['request'] = requests
-        resp['response'] = results
-        return resp
-
-    def get(self, command=None, prompt=None, answer=None, sendonly=False, output=None, check_all=False):
-        if not command:
-            raise ValueError('must provide value of command to execute')
-        if output:
-            raise ValueError("'output' value %s is not supported for get" % output)
-
-        return self.send_command(command=command, prompt=prompt, answer=answer, sendonly=sendonly, check_all=check_all)
 
     def get_device_info(self):
         device_info = {}
@@ -111,6 +55,52 @@ class Cliconf(CliconfBase):
             device_info['network_os_hostname'] = match.group(1)
 
         return device_info
+
+    @enable_mode
+    def get_config(self, source='running', flags=None):
+        if source not in ('running', 'startup'):
+            raise ValueError("fetching configuration from %s is not supported" % source)
+
+        if source == 'running':
+            cmd = 'show running-config '
+        else:
+            cmd = 'show startup-config '
+
+        if flags:
+            cmd += ' '.join(to_list(flags))
+            cmd = cmd.strip()
+
+        return self.send_command(cmd)
+
+    @enable_mode
+    def edit_config(self, commands):
+        resp = {}
+
+        results = []
+        requests = []
+        self.send_command('configure')
+        for line in to_list(commands):
+            if not isinstance(line, Mapping):
+                line = {'command': line}
+
+            cmd = line['command']
+            if cmd != 'end' and cmd[0] != '!':
+                results.append(self.send_command(**line))
+                requests.append(cmd)
+
+        self.send_command('end')
+
+        resp['request'] = requests
+        resp['response'] = results
+        return resp
+
+    def get(self, command=None, prompt=None, answer=None, sendonly=False, output=None, check_all=False):
+        if not command:
+            raise ValueError('must provide value of command to execute')
+        if output:
+            raise ValueError("'output' value %s is not supported for get" % output)
+
+        return self.send_command(command=command, prompt=prompt, answer=answer, sendonly=sendonly, check_all=check_all)
 
     def get_capabilities(self):
         result = dict()
