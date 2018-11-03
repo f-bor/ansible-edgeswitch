@@ -81,7 +81,7 @@ General Mode Ingress Filtering: Disabled
 General Mode Acceptable Frame Type: Admit all
 General Mode Dynamically Added VLANs:
 General Mode Untagged VLANs: 1
-General Mode Tagged VLANs: 100
+General Mode Tagged VLANs:
 General Mode Forbidden VLANs:
 Trunking Mode Native VLAN: 1 (default)
 Trunking Mode Native VLAN tagging: Disable
@@ -96,7 +96,7 @@ General Mode Ingress Filtering: Disabled
 General Mode Acceptable Frame Type: Admit all
 General Mode Dynamically Added VLANs:
 General Mode Untagged VLANs: 1
-General Mode Tagged VLANs: 100
+General Mode Tagged VLANs:
 General Mode Forbidden VLANs:
 Trunking Mode Native VLAN: 1 (default)
 Trunking Mode Native VLAN tagging: Disable
@@ -111,7 +111,7 @@ General Mode Ingress Filtering: Disabled
 General Mode Acceptable Frame Type: Admit all
 General Mode Dynamically Added VLANs:
 General Mode Untagged VLANs: 1
-General Mode Tagged VLANs: 100
+General Mode Tagged VLANs:
 General Mode Forbidden VLANs:
 Trunking Mode Native VLAN: 1 (default)
 Trunking Mode Native VLAN tagging: Disable

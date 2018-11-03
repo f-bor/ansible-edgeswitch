@@ -23,10 +23,10 @@ description:
     on Ubiquiti Edgeswitch network devices.
 notes:
   - Tested against edgeswitch 1.7.4
-  - This module use native Ubiquiti vlan syntax, and does not support switchport compatibility syntax.
+  - This module use native Ubiquiti vlan syntax and does not support switchport compatibility syntax.
     For clarity, it is strongly advised to not use both syntaxes on the same interface.
-  - Edgeswitch does not support changing name of VLAN 1
-  - As auto_tag, auto_untag and auto_exclude are default settings for all interfaces, they are mutually exclusive
+  - Edgeswitch does not support deleting or changing name of VLAN 1
+  - As auto_tag, auto_untag and auto_exclude are a kind of default setting for all interfaces, they are mutually exclusive
 
 options:
   name:
@@ -38,16 +38,15 @@ options:
   tagged_interfaces:
     description:
       - List of interfaces that should accept and transmit tagged frames for the VLAN.
-        Accept range of interfaces. Use C(all) to configure all the switch interfaces.
+        Accept range of interfaces.
   untagged_interfaces:
     description:
-      - List of interfaces that should accept untagged frames and transmit them tagged
-        for the VLAN.
-        Accept range of interfaces. Use C(all) to configure all the switch interfaces.
+      - List of interfaces that should accept untagged frames and transmit them tagged for the VLAN. 
+        Accept range of interfaces.
   excluded_interfaces:
     description:
       - List of interfaces that should be excluded of the VLAN.
-        Accept range of interfaces. Use C(all) to configure all the switch interfaces.
+        Accept range of interfaces.
   auto_tag:
     description:
       - Each of the switch interfaces will be set to accept and transmit
@@ -57,7 +56,7 @@ options:
   auto_untag:
     description:
       - Each of the switch interfaces will be set to accept untagged frames and
-        transmit them tagged into I(vlan_id) unless defined in I(*_interfaces).
+        transmit them tagged for I(vlan_id) unless defined in I(*_interfaces).
         This is a default setting for all switch interfaces.
     type: bool
   auto_exclude:
@@ -100,7 +99,7 @@ EXAMPLES = """
     aggregate:
       - { vlan_id: 1, name: default, auto_untag: true, excluded_interfaces: 0/45-0/48 }
       - { vlan_id: 100, name: voice, auto_tag: true }
-      - { vlan_id: 200, name: video, auto_exclude: true, untagged_interfaces: 0/45-0/48, tagged_interfaces: 0/46 }
+      - { vlan_id: 200, name: video, auto_exclude: true, untagged_interfaces: 0/45-0/48, tagged_interfaces: 0/49 }
 
 - name: Delete vlan
   edgeswitch_vlan:
@@ -120,32 +119,30 @@ commands:
     - exit
     - interface 0/1
     - vlan pvid 50
-    - vlan participation include 50
-    - vlan participation include 100
+    - vlan participation include 50,100
     - vlan tagging 100
     - vlan participation exclude 200
     - no vlan tagging 200
 """
 
 import re
-import time
-
-
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.network.edgeswitch.edgeswitch import load_config, run_commands
 from ansible.module_utils.network.edgeswitch.edgeswitch import build_aggregate_spec, map_params_to_obj
+from ansible.module_utils.network.edgeswitch.edgeswitch_interface import InterfaceConfiguration, merge_interfaces
 
 
 def search_obj_in_list(vlan_id, lst):
     for o in lst:
-        if o['vlan_id'] == str(vlan_id):
+        if o['vlan_id'] == vlan_id:
             return o
 
 
-def map_vlans_to_commands(updates, module):
-    commands = list()
-    want, have = updates
-    purge = module.params['purge']
+def map_vlans_to_commands(want, have, module):
+    commands = []
+    vlans_added = []
+    vlans_removed = []
+    vlans_names = []
 
     for w in want:
         vlan_id = w['vlan_id']
@@ -156,24 +153,33 @@ def map_vlans_to_commands(updates, module):
 
         if state == 'absent':
             if obj_in_have:
-                commands.append('no vlan {0}'.format(vlan_id))
+                vlans_removed.append(vlan_id)
 
         elif state == 'present':
             if not obj_in_have:
-                commands.append('vlan {0}'.format(vlan_id))
+                vlans_added.append(vlan_id)
                 if name:
-                    commands.append('vlan name {0} "{1}"'.format(vlan_id, name))
+                    vlans_names.append('vlan name {0} "{1}"'.format(vlan_id, name))
             else:
                 if name:
                     if name != obj_in_have['name']:
-                        commands.append('vlan name {0} "{1}"'.format(vlan_id, name))
+                        vlans_names.append('vlan name {0} "{1}"'.format(vlan_id, name))
 
-    if purge:
+    if module.params['purge']:
         for h in have:
             obj_in_want = search_obj_in_list(h['vlan_id'], want)
             # you can't delete vlan 1 on Edgeswitch
             if not obj_in_want and h['vlan_id'] != '1':
-                commands.append('no vlan {0}'.format(h['vlan_id']))
+                vlans_removed.append(h['vlan_id'])
+
+    if vlans_removed:
+        commands.append('no vlan {0}'.format(','.join(vlans_removed)))
+
+    if vlans_added:
+        commands.append('vlan {0}'.format(','.join(vlans_added)))
+
+    if vlans_names:
+        commands.extend(vlans_names)
 
     if commands:
         commands.insert(0, 'vlan database')
@@ -182,28 +188,104 @@ def map_vlans_to_commands(updates, module):
     return commands
 
 
+class VlanInterfaceConfiguration(InterfaceConfiguration):
+    """ class holding vlan definitions for a given interface
+    """
+    def __init__(self):
+        InterfaceConfiguration.__init__(self)
+        self.tagged = []
+        self.untagged = []
+        self.excluded = []
+
+    def set_vlan(self, vlan_id, type):
+        try:
+            self.tagged.remove(vlan_id)
+        except ValueError:
+            pass
+
+        try:
+            self.untagged.remove(vlan_id)
+        except ValueError:
+            pass
+
+        try:
+            self.excluded.remove(vlan_id)
+        except ValueError:
+            pass
+
+        f = getattr(self, type)
+        f.append(vlan_id)
+
+    def gen_commands(self, port, module):
+        """ to reduce commands generated by this module
+            we group vlans changes to have a max of 5 vlan commands by interface
+        """
+        include = []
+        tmp = []
+        for vlan_id in self.excluded:
+            if vlan_id not in port['forbidden_vlans']:
+                tmp.append(vlan_id)
+
+        if tmp:
+            self.commands.append('vlan participation exclude {0}'.format(','.join(tmp)))
+            self.commands.append('no vlan tagging {0}'.format(','.join(tmp)))
+
+        tmp = []
+        for vlan_id in self.untagged:
+            if vlan_id not in port['untagged_vlans'] or vlan_id != port['pvid_mode']:
+                tmp.append(vlan_id)
+                include.append(vlan_id)
+
+        if tmp:
+            if len(tmp) > 1:
+                module.fail_json(msg='{0} can\'t have more than one untagged vlan')
+                return
+            self.commands.append('vlan pvid {0}'.format(tmp[0]))
+
+        tmp = []
+        for vlan_id in self.tagged:
+            if vlan_id not in port['tagged_vlans']:
+                tmp.append(vlan_id)
+                include.append(vlan_id)
+
+        if include:
+            self.commands.append('vlan participation include {0}'.format(','.join(include)))
+
+        if tmp:
+            self.commands.append('vlan tagging {0}'.format(','.join(tmp)))
+
+
+def set_interfaces_vlan(interfaces_param, interfaces, vlan_id, type):
+    """ set vlan_id type for each interface in interfaces_param on interfaces
+        unrange interfaces_param if needed
+    """
+    if interfaces_param:
+        for i in interfaces_param:
+            match = re.search(r'(\d+)\/(\d+)-(\d+)\/(\d+)', i)
+            if match:
+                group = match.group(1)
+                start = int(match.group(2))
+                end = int(match.group(4))
+                for x in range(start, end + 1):
+                    key = '{0}/{1}'.format(group, x)
+                    interfaces[key].set_vlan(vlan_id, type)
+            else:
+                interfaces[i].set_vlan(vlan_id, type)
+
+
 def map_interfaces_to_commands(want, ports, module):
-    def set_interfaces(interfaces_param, interfaces, action):
-        if interfaces_param:
-            for i in interfaces_param:
-                match = re.search(r'(\d+)\/(\d+)-(\d+)\/(\d+)', i)
-                if match:
-                    for x in range(int(match.group(2)), int(match.group(4)) + 1):
-                        interfaces['{0}/{1}'.format(match.group(1), x)] = action
-                else:
-                    interfaces[i] = action
-
     commands = list()
-    purge = module.params['purge']
 
-    interfaces_cmds = {}
+    # generate a configuration for each interface
+    interfaces = {}
+    for key, value in ports.items():
+        interfaces[key] = VlanInterfaceConfiguration()
 
     for w in want:
         state = w['state']
         if state != 'present':
             continue
 
-        interfaces = {}
         auto_tag = w['auto_tag']
         auto_untag = w['auto_untag']
         auto_exclude = w['auto_exclude']
@@ -212,44 +294,33 @@ def map_interfaces_to_commands(want, ports, module):
         untagged_interfaces = w['untagged_interfaces']
         excluded_interfaces = w['excluded_interfaces']
 
+        # set the default type, if any
         for key, value in ports.items():
             if auto_tag:
-                interfaces[key] = 'tag'
+                interfaces[key].tagged.append(vlan_id)
             elif auto_exclude:
-                if vlan_id not in value['forbidden_vlans']:
-                    interfaces[key] = 'exclude'
+                interfaces[key].excluded.append(vlan_id)
             elif auto_untag:
-                interfaces[key] = 'untag'
+                interfaces[key].untagged.append(vlan_id)
 
-        set_interfaces(tagged_interfaces, interfaces, 'tag')
-        set_interfaces(untagged_interfaces, interfaces, 'untag')
-        set_interfaces(excluded_interfaces, interfaces, 'exclude')
+        # set explicit definitions
+        set_interfaces_vlan(tagged_interfaces, interfaces, vlan_id, 'tagged')
+        set_interfaces_vlan(untagged_interfaces, interfaces, vlan_id, 'untagged')
+        set_interfaces_vlan(excluded_interfaces, interfaces, vlan_id, 'excluded')
 
-        for i, t in interfaces.items():
-            try:
-                cmds = interfaces_cmds[i]
-            except KeyError:
-                cmds = []
-                interfaces_cmds[i] = cmds
+    # generate commands for each interface
+    for i, interface in interfaces.items():
+        port = ports[i]
+        interface.gen_commands(port, module)
 
-            port = ports[i]
-            if t == 'exclude':
-                if vlan_id not in port['forbidden_vlans']:
-                    cmds.append('vlan participation exclude {0}'.format(vlan_id))
-                    cmds.append('no vlan tagging {0}'.format(vlan_id))
-            elif t == 'untag':
-                if vlan_id not in port['untagged_vlans'] or vlan_id != port['pvid_mode']:
-                    cmds.append('vlan pvid {0}'.format(vlan_id))
-                    cmds.append('vlan participation include {0}'.format(vlan_id))
-            elif t == 'tag':
-                if vlan_id not in port['tagged_vlans']:
-                    cmds.append('vlan participation include {0}'.format(vlan_id))
-                    cmds.append('vlan tagging {0}'.format(vlan_id))
+    # reduce them using range syntax when possible
+    interfaces = merge_interfaces(interfaces)
 
-    for i, cmds in sorted(interfaces_cmds.items()):
-        if len(cmds) > 0:
+    # final output
+    for i, interface in interfaces.items():
+        if len(interface.commands) > 0:
             commands.append('interface {0}'.format(i))
-            commands.extend(cmds)
+            commands.extend(interface.commands)
 
     return commands
 
@@ -261,6 +332,20 @@ def parse_vlan_brief(vlan_out):
         if obj:
             have.append(obj.groupdict())
     return have
+
+
+def unrange(vlans):
+    res = []
+    for vlan in vlans:
+        match = re.match(r'(\d+)-(\d+)', vlan)
+        if match:
+            start = int(match.group(1))
+            end = int(match.group(2))
+            for vlan_id in range(start, end + 1):
+                res.append(str(vlan_id))
+        else:
+            res.append(vlan)
+    return res
 
 
 def parse_interfaces_switchport(cmd_out):
@@ -280,9 +365,9 @@ def parse_interfaces_switchport(cmd_out):
         port = {
             'interface': o[0],
             'pvid_mode': o[3].replace("(default)", "").strip(),
-            'untagged_vlans': o[7].strip().split(','),
-            'tagged_vlans': o[8].strip().split(','),
-            'forbidden_vlans': o[9].strip().split(',')
+            'untagged_vlans': unrange(o[7].strip().split(',')),
+            'tagged_vlans': unrange(o[8].strip().split(',')),
+            'forbidden_vlans': unrange(o[9].strip().split(','))
         }
         ports[port['interface']] = port
     return ports
@@ -297,16 +382,18 @@ def map_config_to_obj(module):
 
 
 def check_params(module, want):
+    """ Deeper checks on parameters
+    """
     def check_parmams_interface(interfaces):
         if interfaces:
             for i in interfaces:
                 match = re.search(r'(\d+)\/(\d+)-(\d+)\/(\d+)', i)
                 if match:
                     if match.group(1) != match.group(3):
-                        module.fail_json(msg="interface range must be withing same group: " + i)
+                        module.fail_json(msg="interface range must be within same group: " + i)
                 else:
                     match = re.search(r'(\d+)\/(\d+)', i)
-                    if not match and i != 'all':
+                    if not match:
                         module.fail_json(msg="wrong interface format: " + i)
 
     for w in want:
@@ -331,6 +418,7 @@ def check_params(module, want):
         check_parmams_interface(w['tagged_interfaces'])
         check_parmams_interface(w['untagged_interfaces'])
         check_parmams_interface(w['excluded_interfaces'])
+        w['vlan_id'] = str(w['vlan_id'])
 
 
 def main():
@@ -372,7 +460,7 @@ def main():
     check_params(module, want)
 
     # vlans are not created/deleted in configure mode
-    commands = map_vlans_to_commands((want, have), module)
+    commands = map_vlans_to_commands(want, have, module)
     result['commands'] = commands
 
     if commands:
@@ -384,10 +472,7 @@ def main():
 
     # interfaces vlan are set in configure mode
     commands = map_interfaces_to_commands(want, ports, module)
-    if result['commands']:
-        result['commands'].extend(commands)
-    else:
-        result['commands'] = commands
+    result['commands'].extend(commands)
 
     if commands:
         if not module.check_mode:

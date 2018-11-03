@@ -47,7 +47,8 @@ def build_aggregate_spec(element_spec, required, *extra_spec):
         aggregate=dict(type='list', elements='dict', options=aggregate_spec)
     )
     argument_spec.update(element_spec)
-    argument_spec.update(*extra_spec)
+    for elt in extra_spec:
+        argument_spec.update(elt)
     return argument_spec
 
 
@@ -103,14 +104,10 @@ def get_defaults_flag(module):
 
 
 def get_config(module, flags=None):
-    flags = [] if flags is None else flags
-
-    cmd = 'show running-config '
-    cmd += ' '.join(flags)
-    cmd = cmd.strip()
+    flag_str = ' '.join(to_list(flags))
 
     try:
-        return _DEVICE_CONFIGS[cmd]
+        return _DEVICE_CONFIGS[flag_str]
     except KeyError:
         connection = get_connection(module)
         try:
@@ -118,7 +115,7 @@ def get_config(module, flags=None):
         except ConnectionError as exc:
             module.fail_json(msg=to_text(exc, errors='surrogate_then_replace'))
         cfg = to_text(out, errors='surrogate_then_replace').strip()
-        _DEVICE_CONFIGS[cmd] = cfg
+        _DEVICE_CONFIGS[flag_str] = cfg
         return cfg
 
 

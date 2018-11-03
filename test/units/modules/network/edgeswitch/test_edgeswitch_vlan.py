@@ -15,7 +15,6 @@
 # You should have received a copy of the GNU General Public License
 # along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
 
-# Make coding more python3-ish
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
@@ -93,13 +92,7 @@ class TestEdgeswitchVlanModule(TestEdgeswitchModule):
         set_module_args({'vlan_id': '100', 'name': 'voice', 'state': 'present', 'tagged_interfaces': ['0/6-0/8']})
         result = self.execute_module(changed=True)
         expected_commands = [
-            'interface 0/6',
-            'vlan participation include 100',
-            'vlan tagging 100',
-            'interface 0/7',
-            'vlan participation include 100',
-            'vlan tagging 100',
-            'interface 0/8',
+            'interface 0/6-0/8',
             'vlan participation include 100',
             'vlan tagging 100',
         ]
@@ -113,10 +106,7 @@ class TestEdgeswitchVlanModule(TestEdgeswitchModule):
             'vlan 3',
             'vlan name 3 \"vlan3\"',
             'exit',
-            'interface 0/7',
-            'vlan pvid 3',
-            'vlan participation include 3',
-            'interface 0/8',
+            'interface 0/7-0/8',
             'vlan pvid 3',
             'vlan participation include 3',
         ]
