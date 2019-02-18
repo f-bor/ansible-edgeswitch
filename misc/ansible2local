@@ -1,0 +1,14 @@
+#!/bin/sh
+
+if [ -z "${ANSIBLE_HOME}" ]
+then
+    echo "ANSIBLE_HOME is undefined. Go into ansible directory and run 'source hacking/env-setup'"
+    exit 1
+fi
+
+cp ${ANSIBLE_HOME}/test/units/modules/network/edgeswitch/*.py test/units/modules/network/edgeswitch/
+cp ${ANSIBLE_HOME}/test/units/modules/network/edgeswitch/fixtures/* test/units/modules/network/edgeswitch/fixtures/
+cp ${ANSIBLE_HOME}/lib/ansible/module_utils/network/edgeswitch/*.py module_utils/network/edgeswitch/
+cp ${ANSIBLE_HOME}/lib/ansible/modules/network/edgeswitch/*.py library/
+cp ${ANSIBLE_HOME}/lib/ansible/plugins/cliconf/edgeswitch.py plugins/cliconf/edgeswitch.py
+cp ${ANSIBLE_HOME}/lib/ansible/plugins/terminal/edgeswitch.py plugins/terminal/edgeswitch.py

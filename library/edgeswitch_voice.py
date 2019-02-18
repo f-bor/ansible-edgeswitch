@@ -77,9 +77,7 @@ commands:
     - lldp transmit
     - lldp receive
     - lldp med
-
-  sample:
-    - interface 0/1
+    - interface 0/2
     - no voice vlan
     - no voice vlan dscp
 """
