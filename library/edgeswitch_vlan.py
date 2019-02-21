@@ -247,6 +247,8 @@ class VlanInterfaceConfiguration(InterfaceConfiguration):
             if vlan_id not in port['tagged_vlans']:
                 tag.append(vlan_id)
                 include.append(vlan_id)
+            elif vlan_id in port['forbidden_vlans']:
+                include.append(vlan_id)
 
         if include:
             self.commands.append('vlan participation include {0}'.format(','.join(include)))
