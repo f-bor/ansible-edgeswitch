@@ -77,7 +77,9 @@ commands:
     - lldp transmit
     - lldp receive
     - lldp med
-    - interface 0/2
+
+  sample:
+    - interface 0/1
     - no voice vlan
     - no voice vlan dscp
 """
@@ -86,6 +88,7 @@ import re
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.network.edgeswitch.edgeswitch import get_interfaces_config, load_config, build_aggregate_spec, map_params_to_obj
+from ansible.module_utils.network.edgeswitch.edgeswitch_interface import InterfaceConfiguration, merge_interfaces
 
 
 def map_to_commands_interface(vlan_id, dscp, lldp, state, port):
@@ -97,9 +100,10 @@ def map_to_commands_interface(vlan_id, dscp, lldp, state, port):
         if port['voice_dscp'] != dscp:
             commands.append('voice vlan dscp ' + dscp)
 
-        for ltype in lldp:
-            if ltype not in port['lldp']:
-                commands.append("lldp " + ltype)
+        if lldp is not None:
+            for ltype in lldp:
+                if ltype not in port['lldp']:
+                    commands.append("lldp " + ltype)
 
     elif state == 'absent':
         if port['voice_vlan'] != 'no':
@@ -112,13 +116,14 @@ def map_to_commands_interface(vlan_id, dscp, lldp, state, port):
 
 
 def map_to_commands(want, ports, module):
-    commands = list()
-
+    # generate commands
+    interfaces_cmds = {}
     for w in want:
-        interfaces_cmd = {}
         vlan_id = str(w['vlan_id'])
         dscp = w['dscp']
         interfaces = w['interfaces']
+        if not isinstance(interfaces, list):
+            interfaces = [interfaces]
         lldp = w['lldp']
         state = w['state']
         if state == 'present' and vlan_id == 'None':
@@ -132,7 +137,8 @@ def map_to_commands(want, ports, module):
                         continue
 
                     port = ports[key]
-                    interfaces_cmd[key] = map_to_commands_interface(vlan_id, dscp, lldp, state, port)
+                    interfaces_cmds[key] = InterfaceConfiguration()
+                    interfaces_cmds[key].commands = map_to_commands_interface(vlan_id, dscp, lldp, state, port)
 
             else:
                 match = re.search(r'0\/(\d+)-0\/(\d+)', i)
@@ -140,15 +146,22 @@ def map_to_commands(want, ports, module):
                     for x in range(int(match.group(1)), int(match.group(2)) + 1):
                         key = '0/' + str(x)
                         port = ports[key]
-                        interfaces_cmd[key] = map_to_commands_interface(vlan_id, dscp, lldp, state, port)
+                        interfaces_cmds[key] = InterfaceConfiguration()
+                        interfaces_cmds[key].commands = map_to_commands_interface(vlan_id, dscp, lldp, state, port)
                 else:
                     port = ports[i]
-                    interfaces_cmd[i] = map_to_commands_interface(vlan_id, dscp, lldp, state, port)
+                    interfaces_cmds[i] = InterfaceConfiguration()
+                    interfaces_cmds[i].commands = map_to_commands_interface(vlan_id, dscp, lldp, state, port)
 
-        for i, t in interfaces_cmd.items():
-            if len(t):
-                commands.append('interface {0}'.format(i))
-                commands.extend(t)
+    # reduce commands using range syntax when possible
+    interfaces_cmds = merge_interfaces(interfaces_cmds)
+
+    # final output
+    commands = []
+    for i, interface in interfaces_cmds.items():
+        if len(interface.commands) > 0:
+            commands.append('interface {0}'.format(i))
+            commands.extend(interface.commands)
 
     return commands
 
@@ -162,7 +175,7 @@ def map_config_to_obj(module):
         if not match:
             continue
 
-        # ling aggregation does not support voice vlan
+        # line aggregation does not support voice vlan
         iname = match.group(1)
         if iname.startswith("lag"):
             continue
