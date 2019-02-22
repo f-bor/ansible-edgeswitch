@@ -41,7 +41,7 @@ _DEVICE_CONFIGS = {}
 def build_aggregate_spec(element_spec, required, *extra_spec):
     aggregate_spec = deepcopy(element_spec)
     for elt in required:
-        aggregate_spec[elt] = dict(required=True)
+        aggregate_spec[elt]['required'] = True
     remove_default_spec(aggregate_spec)
     argument_spec = dict(
         aggregate=dict(type='list', elements='dict', options=aggregate_spec)

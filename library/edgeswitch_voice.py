@@ -22,7 +22,7 @@ description:
   - This module provides declarative management of voice feature
     on Ubiquiti Edgeswitch network devices.
 notes:
-  - Tested against Edgemax 1.7.4
+  - Tested against Edgemax 1.8.1
   - Voice features can only be enabled on physical interfaces
 options:
   vlan_id:
@@ -38,7 +38,7 @@ options:
   lldp:
     description:
       - List of LLDP options to enable on interfaces.
-    choices: ['transmit', 'receive', 'med']
+    choices: ['transmit', 'receive', 'med confignotification']
   state:
     description:
       - Action to apply on the voice VLAN configuration.
@@ -76,7 +76,7 @@ commands:
     - voice vlan dscp 46
     - lldp transmit
     - lldp receive
-    - lldp med
+    - lldp med confignotification
 
   sample:
     - interface 0/1
@@ -97,8 +97,11 @@ def map_to_commands_interface(vlan_id, dscp, lldp, state, port):
         if port['voice_vlan'] != vlan_id:
             commands.append('voice vlan ' + vlan_id)
 
-        if port['voice_dscp'] != dscp:
-            commands.append('voice vlan dscp ' + dscp)
+        if dscp is None:
+            if port['voice_dscp'] != 0:
+                commands.append('no voice vlan dscp')
+        elif port['voice_dscp'] != dscp:
+            commands.append('voice vlan dscp {0}'.format(dscp))
 
         if lldp is not None:
             for ltype in lldp:
@@ -204,10 +207,10 @@ def main():
     """
     element_spec = dict(
         vlan_id=dict(type='int'),
-        dscp=dict(),
+        dscp=dict(type='int'),
         interfaces=dict(type='list'),
         lldp=dict(type='list',
-                  choices=['transmit', 'receive', 'med']),
+                  choices=['transmit', 'receive', 'med confignotification']),
         state=dict(default='present',
                    choices=['present', 'absent'])
     )
