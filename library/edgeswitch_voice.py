@@ -122,7 +122,7 @@ def map_to_commands(want, ports, module):
     # generate commands
     interfaces_cmds = {}
     for w in want:
-        vlan_id = str(w['vlan_id'])
+        vlan_id = w['vlan_id']
         dscp = w['dscp']
         interfaces = w['interfaces']
         if not isinstance(interfaces, list):
@@ -187,13 +187,13 @@ def map_config_to_obj(module):
         have[iname] = port
         match = re.search(r'voice vlan (\d+)', cfg, re.M)
         if match:
-            port['voice_vlan'] = match.group(1)
+            port['voice_vlan'] = int(match.group(1))
         else:
             port['voice_vlan'] = 'no'
 
         match = re.search(r'voice vlan dscp (\d+)', cfg, re.M)
         if match:
-            port['voice_dscp'] = match.group(1)
+            port['voice_dscp'] = int(match.group(1))
         else:
             port['voice_dscp'] = 'no'
 
