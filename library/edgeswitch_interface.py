@@ -202,7 +202,7 @@ def map_params_to_obj(module):
     return obj
 
 
-def map_obj_to_commands(updates, module):
+def map_obj_to_commands(updates, module, warnings):
     commands = list()
     want, have = updates
 
@@ -215,6 +215,9 @@ def map_obj_to_commands(updates, module):
         mtu = w['mtu']
 
         obj_in_have = search_obj_in_list(name, have)
+        if obj_in_have is None:
+            warnings.append('interface {0} does not exist on target'.format(name))
+            continue
 
         running_mtu = obj_in_have.get('mtu')
         if mtu and not running_mtu:
@@ -275,8 +278,10 @@ def main():
     want = map_params_to_obj(module)
     have = map_config_to_obj(module)
 
-    commands = map_obj_to_commands((want, have), module)
+    warnings = []
+    commands = map_obj_to_commands((want, have), module, warnings)
     result['commands'] = commands
+    result['warnings'] = warnings
 
     if commands:
         if not module.check_mode:

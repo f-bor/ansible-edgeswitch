@@ -120,7 +120,7 @@ def get_config(module, flags=None):
 
 
 def get_interfaces_config(module):
-    config = get_config(module)
+    config = get_config(module, 'all')
     lines = config.split('\n')
     interfaces = {}
     interface = None
