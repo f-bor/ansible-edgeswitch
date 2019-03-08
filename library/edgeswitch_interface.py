@@ -225,12 +225,11 @@ def map_obj_to_commands(updates, module, warnings):
         if mtu != running_mtu:
             cmds.append('mtu {0}'.format(mtu))
 
-        if description is not None:
-            if len(description):
-                if description != obj_in_have.get('description'):
-                    cmds.append('description \'{0}\''.format(description))
-            elif obj_in_have.get('description'):
-                cmds.append('no description')
+        if description:
+            if description != obj_in_have.get('description'):
+                cmds.append('description \'{0}\''.format(description))
+        elif obj_in_have.get('description'):
+            cmds.append('no description')
 
         if speed and speed != obj_in_have.get('speed'):
             cmds.append('speed ' + speed)
