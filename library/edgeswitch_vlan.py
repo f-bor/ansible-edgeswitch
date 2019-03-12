@@ -255,7 +255,7 @@ class VlanInterfaceConfiguration(InterfaceConfiguration):
 
         if pvid:
             if len(pvid) > 1:
-                module.fail_json(msg='{0} can\'t have more than one untagged vlan')
+                module.fail_json(msg='{0} can\'t have more than one untagged vlan'.format(port['interface']))
                 return
             self.commands.append('vlan pvid {0}'.format(pvid[0]))
 
