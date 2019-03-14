@@ -95,7 +95,7 @@ def map_to_commands_interface(vlan_id, dscp, lldp, state, port):
     commands = []
     if state == 'present':
         if port['voice_vlan'] != vlan_id:
-            commands.append('voice vlan ' + vlan_id)
+            commands.append('voice vlan ' + str(vlan_id))
 
         if dscp is None:
             if port['voice_dscp'] != 0:
