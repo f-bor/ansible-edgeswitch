@@ -135,6 +135,7 @@ def get_interfaces_config(module):
             match = re.match(r'^interface (.*)$', line)
             if match:
                 interface = list()
+                line = line.replace('lag ', '3/')
                 interface.append(line)
 
     return interfaces
