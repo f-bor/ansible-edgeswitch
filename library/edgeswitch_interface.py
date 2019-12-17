@@ -36,7 +36,7 @@ options:
     description:
       - Interface link status. If the value is I(True) the interface state will be enabled,
         else if value is I(False) interface will be in disable (shutdown) state.
-    default: True
+    required: False
     type: bool
   speed:
     description:
@@ -177,10 +177,11 @@ def map_params_to_obj(module):
             validate_param_values(module, item, item)
             d = item.copy()
 
-            if d['enabled']:
-                d['disable'] = False
-            else:
-                d['disable'] = True
+            if 'enabled' in d and d['enabled'] is not None:
+                if d['enabled']:
+                    d['disable'] = False
+                else:
+                    d['disable'] = True
 
             obj.append(d)
 
@@ -193,10 +194,11 @@ def map_params_to_obj(module):
         }
 
         validate_param_values(module, params)
-        if module.params['enabled']:
-            params.update({'disable': False})
-        else:
-            params.update({'disable': True})
+        if 'enabled' in module.params and module.params['enabled'] is not None:
+            if module.params['enabled']:
+                params.update({'disable': False})
+            else:
+                params.update({'disable': True})
 
         obj.append(params)
     return obj
@@ -209,7 +211,6 @@ def map_obj_to_commands(updates, module, warnings):
     for w in want:
         cmds = []
         name = w['name']
-        disable = w['disable']
         speed = w['speed']
         description = w['description']
         mtu = w['mtu']
@@ -234,8 +235,8 @@ def map_obj_to_commands(updates, module, warnings):
         if speed and speed != obj_in_have.get('speed'):
             cmds.append('speed ' + speed)
 
-        if disable != obj_in_have.get('disable'):
-            if disable:
+        if 'disable' in w and w['disable'] != obj_in_have.get('disable'):
+            if w['disable']:
                 cmds.append('shutdown')
             else:
                 cmds.append('no shutdown')
@@ -256,7 +257,7 @@ def main():
         description=dict(),
         speed=dict(),
         mtu=dict(),
-        enabled=dict(default=True, type='bool'),
+        enabled=dict(required=False, type='bool'),
     )
 
     argument_spec = build_aggregate_spec(
