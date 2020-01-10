@@ -223,7 +223,9 @@ def map_obj_to_commands(updates, module, warnings):
         running_mtu = obj_in_have.get('mtu')
         if mtu and not running_mtu:
             running_mtu = get_running_mtu(name, module)
-        if mtu != running_mtu:
+        if mtu is None and running_mtu is not None:
+            cmds.append('no mtu')
+        elif mtu != running_mtu:
             cmds.append('mtu {0}'.format(mtu))
 
         if description:
