@@ -143,7 +143,7 @@ def map_to_commands(want, ports, module):
                     interfaces_cmds[key] = InterfaceConfiguration()
                     interfaces_cmds[key].commands = map_to_commands_interface(vlan_id, dscp, lldp, state, port)
 
-            else:
+            elif i is not None:
                 match = re.search(r'0\/(\d+)-0\/(\d+)', i)
                 if match:
                     for x in range(int(match.group(1)), int(match.group(2)) + 1):
