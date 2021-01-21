@@ -373,14 +373,14 @@ def parse_interfaces_switchport(cmd_out):
         'General Mode Acceptable Frame Type:(.*)\n'
         'General Mode Dynamically Added VLANs:(.*)\n'
         'General Mode Untagged VLANs:(.*)\n'
-        'General Mode Tagged VLANs:(.*)\n'
+        'General Mode Tagged VLANs:([0-9\ \,\-\n]*)\n'
         'General Mode Forbidden VLANs:(.*)\n', cmd_out)
     for o in objs:
         port = {
             'interface': o[0],
             'pvid_mode': o[3].replace("(default)", "").strip(),
             'untagged_vlans': unrange(o[7].strip().split(',')),
-            'tagged_vlans': unrange(o[8].strip().split(',')),
+            'tagged_vlans': unrange(o[8].strip().replace(' ', '').replace('\n', ',').split(',')),
             'forbidden_vlans': unrange(o[9].strip().split(','))
         }
         ports[port['interface']] = port
