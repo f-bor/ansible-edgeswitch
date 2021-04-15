@@ -138,7 +138,7 @@ def search_obj_in_list(vlan_id, lst):
             return o
 
 
-def chunks(lst, size):
+def chunks(lst, size=20):
     for idx in range(0, len(lst), size):
         yield lst[idx:idx + size]
 
@@ -178,11 +178,11 @@ def map_vlans_to_commands(want, have, module):
                 vlans_removed.append(h['vlan_id'])
 
     if vlans_removed:
-        for vlans in chunks(vlans_removed, 10):
+        for vlans in chunks(vlans_removed):
             commands.append('no vlan {0}'.format(','.join(vlans)))
 
     if vlans_added:
-        for vlans in chunks(vlans_added, 10):
+        for vlans in chunks(vlans_added):
             commands.append('vlan {0}'.format(','.join(vlans)))
 
     if vlans_names:
@@ -258,7 +258,8 @@ class VlanInterfaceConfiguration(InterfaceConfiguration):
                 include.append(vlan_id)
 
         if include:
-            self.commands.append('vlan participation include {0}'.format(','.join(include)))
+            for vlans in chunks(include):
+                self.commands.append('vlan participation include {0}'.format(','.join(vlans)))
 
         if pvid:
             if len(pvid) > 1:
@@ -267,13 +268,16 @@ class VlanInterfaceConfiguration(InterfaceConfiguration):
             self.commands.append('vlan pvid {0}'.format(pvid[0]))
 
         if untag:
-            self.commands.append('no vlan tagging {0}'.format(','.join(untag)))
+            for vlans in chunks(untag):
+                self.commands.append('no vlan tagging {0}'.format(','.join(vlans)))
 
         if tag:
-            self.commands.append('vlan tagging {0}'.format(','.join(tag)))
+            for vlans in chunks(tag):
+                self.commands.append('vlan tagging {0}'.format(','.join(vlans)))
 
         if exclude:
-            self.commands.append('vlan participation exclude {0}'.format(','.join(exclude)))
+            for vlans in chunks(exclude):
+                self.commands.append('vlan participation exclude {0}'.format(','.join(vlans)))
 
 
 def set_interfaces_vlan(interfaces_param, interfaces, vlan_id, type):
@@ -369,33 +373,47 @@ def unrange(vlans):
     return res
 
 
-def parse_interfaces_switchport(cmd_out, module):
+def parse_interfaces_configuration(cmd_out):
     ports = dict()
-    objs = re.findall(
-        r'Port: (\d+\/\d+)\n'
-        'VLAN Membership Mode:(.*)\n'
-        'Access Mode VLAN:(.*)\n'
-        'General Mode PVID:(.*)\n'
-        'General Mode Ingress Filtering:(.*)\n'
-        'General Mode Acceptable Frame Type:(.*)\n'
-        'General Mode Dynamically Added VLANs:(.*)\n'
-        'General Mode Untagged VLANs:(.*)\n'
-        'General Mode Tagged VLANs:([0-9\ \,\-\n]*)\n'
-        'General Mode Forbidden VLANs:(.*)\n', cmd_out)
-    for o in objs:
-        port = {
-            'interface': o[0],
-            'pvid_mode': o[3].replace("(default)", "").strip(),
-            'untagged_vlans': unrange(o[7].strip().split(',')),
-            'tagged_vlans': unrange(o[8].strip().replace(' ', '').replace('\n', ',').split(',')),
-            'forbidden_vlans': unrange(o[9].strip().split(','))
-        }
-        ports[port['interface']] = port
+    level = 0
+    port = None
+    for line in cmd_out.split('\n'):
+        if level == 0:
+            if not line.startswith('interface '):
+                continue
+            line = line.replace('interface ', '').replace('lag ', '3/')
+            if not re.match(r'(\d+\/\d+)', line):
+                continue
+            port = dict()
+            port['interface'] = line
+            port['pvid_mode'] = ''
+            port['untagged_vlans'] = []
+            port['tagged_vlans'] = []
+            port['forbidden_vlans'] = []
+            level = 1
+            continue
+
+        if line == 'exit':
+            level = level - 1
+            assert level == 0
+
+            ports[port['interface']] = port
+        elif line.startswith('vlan pvid '):
+            port['pvid_mode'] = line.replace('vlan pvid ', '')
+        elif line == 'no vlan pvid':
+            port['pvid_mode'] = '1'
+        elif line.startswith('no vlan tagging '):
+            port['untagged_vlans'].extend(unrange(line.replace('no vlan tagging ', '').split(',')))
+        elif line.startswith('vlan tagging '):
+            port['tagged_vlans'].extend(unrange(line.replace('vlan tagging ', '').split(',')))
+        elif line.startswith('vlan participation exclude '):
+            port['forbidden_vlans'].extend(unrange(line.replace('vlan participation exclude ', '').split(',')))
+
     return ports
 
 
 def map_ports_to_obj(module):
-    return parse_interfaces_switchport(run_commands(module, ['show interfaces switchport'])[0], module)
+    return parse_interfaces_configuration(run_commands(module, ['show running-config all'])[0])
 
 
 def map_config_to_obj(module):
