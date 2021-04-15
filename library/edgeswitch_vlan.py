@@ -138,6 +138,11 @@ def search_obj_in_list(vlan_id, lst):
             return o
 
 
+def chunks(lst, size):
+    for idx in range(0, len(lst), size):
+        yield lst[idx:idx + size]
+
+
 def map_vlans_to_commands(want, have, module):
     commands = []
     vlans_added = []
@@ -173,10 +178,12 @@ def map_vlans_to_commands(want, have, module):
                 vlans_removed.append(h['vlan_id'])
 
     if vlans_removed:
-        commands.append('no vlan {0}'.format(','.join(vlans_removed)))
+        for vlans in chunks(vlans_removed, 10):
+            commands.append('no vlan {0}'.format(','.join(vlans)))
 
     if vlans_added:
-        commands.append('vlan {0}'.format(','.join(vlans_added)))
+        for vlans in chunks(vlans_added, 10):
+            commands.append('vlan {0}'.format(','.join(vlans)))
 
     if vlans_names:
         commands.extend(vlans_names)
@@ -362,7 +369,7 @@ def unrange(vlans):
     return res
 
 
-def parse_interfaces_switchport(cmd_out):
+def parse_interfaces_switchport(cmd_out, module):
     ports = dict()
     objs = re.findall(
         r'Port: (\d+\/\d+)\n'
@@ -388,7 +395,7 @@ def parse_interfaces_switchport(cmd_out):
 
 
 def map_ports_to_obj(module):
-    return parse_interfaces_switchport(run_commands(module, ['show interfaces switchport'])[0])
+    return parse_interfaces_switchport(run_commands(module, ['show interfaces switchport'])[0], module)
 
 
 def map_config_to_obj(module):
