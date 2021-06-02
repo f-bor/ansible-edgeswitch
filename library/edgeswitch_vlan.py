@@ -242,7 +242,8 @@ class VlanInterfaceConfiguration(InterfaceConfiguration):
 
         for vlan_id in self.untagged:
             if vlan_id in port['forbidden_vlans'] or vlan_id not in port['untagged_vlans'] and vlan_id not in port['tagged_vlans']:
-                include.append(vlan_id)
+                if vlan_id != '1':
+                    include.append(vlan_id)
 
             if vlan_id in port['tagged_vlans']:
                 untag.append(vlan_id)
@@ -402,8 +403,8 @@ def parse_interfaces_configuration(cmd_out):
             port['pvid_mode'] = line.replace('vlan pvid ', '')
         elif line == 'no vlan pvid':
             port['pvid_mode'] = '1'
-        elif line.startswith('no vlan tagging '):
-            port['untagged_vlans'].extend(unrange(line.replace('no vlan tagging ', '').split(',')))
+        elif line.startswith('vlan participation include '):
+            port['untagged_vlans'].extend(unrange(line.replace('vlan participation include ', '').split(',')))
         elif line.startswith('vlan tagging '):
             port['tagged_vlans'].extend(unrange(line.replace('vlan tagging ', '').split(',')))
         elif line.startswith('vlan participation exclude '):
